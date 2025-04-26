@@ -122,14 +122,13 @@ pub async fn file_reader(
                                 tracing::warn!("File not found: {}", path.display());
                                 let missing_key =
                                     DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
-                                return (StatusCode::GONE, missing_key).into_response();
+                                (StatusCode::GONE, missing_key).into_response()
                             } else {
                                 tracing::error!("Failed to read file: {}", err);
                                 let read_error =
                                     READ_FILE_ERROR.to_string().replace("{{ FN }}", &id_path);
-                                return (StatusCode::INTERNAL_SERVER_ERROR, read_error)
-                                    .into_response();
-                            };
+                                (StatusCode::INTERNAL_SERVER_ERROR, read_error).into_response()
+                            }
                         }
                     }
                 }
@@ -214,26 +213,26 @@ pub async fn file_reader(
                         headers.insert(key, value.parse().unwrap());
                     }
 
-                    return builder
+                    builder
                         .status(StatusCode::OK)
                         .body(body)
                         .unwrap()
-                        .into_response();
+                        .into_response()
                 }
                 CDNData::Short { target } => {
-                    return (StatusCode::TEMPORARY_REDIRECT, target).into_response();
+                    (StatusCode::TEMPORARY_REDIRECT, target).into_response()
                 }
             }
         }
         Ok(None) => {
             tracing::warn!("No data found for ID: {}", raw_id);
             let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
-            return (StatusCode::NOT_FOUND, missing_key).into_response();
+            (StatusCode::NOT_FOUND, missing_key).into_response()
         }
         Err(err) => {
             tracing::error!("Failed to get data from Redis: {}", err);
             let fetch_error = REDIS_GET_ERROR.to_string().replace("{{ FN }}", &id_path);
-            return (StatusCode::INTERNAL_SERVER_ERROR, fetch_error).into_response();
+            (StatusCode::INTERNAL_SERVER_ERROR, fetch_error).into_response()
         }
     }
 }
@@ -346,43 +345,42 @@ pub async fn file_reader_raw(
                                 .header(axum::http::header::CONTENT_TYPE, actual_mimetype)
                                 .body(Body::from(content))
                                 .unwrap();
-                            return builder.into_response();
+                            builder.into_response()
                         }
                         Err(err) => {
                             if err.kind() == std::io::ErrorKind::NotFound {
                                 tracing::warn!("File not found: {}", path.display());
                                 let missing_key =
                                     DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
-                                return (StatusCode::GONE, missing_key).into_response();
+                                (StatusCode::GONE, missing_key).into_response()
                             } else {
                                 tracing::error!("Failed to read file: {}", err);
                                 let read_error =
                                     READ_FILE_ERROR.to_string().replace("{{ FN }}", &id_path);
-                                return (StatusCode::INTERNAL_SERVER_ERROR, read_error)
-                                    .into_response();
-                            };
+                                (StatusCode::INTERNAL_SERVER_ERROR, read_error).into_response()
+                            }
                         }
                     }
                 }
                 CDNData::File { .. } => {
                     let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
-                    return (StatusCode::NOT_FOUND, missing_key).into_response();
+                    (StatusCode::NOT_FOUND, missing_key).into_response()
                 }
                 CDNData::Short { .. } => {
                     let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
-                    return (StatusCode::NOT_FOUND, missing_key).into_response();
+                    (StatusCode::NOT_FOUND, missing_key).into_response()
                 }
             }
         }
         Ok(None) => {
             tracing::warn!("No data found for ID: {}", raw_id);
             let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
-            return (StatusCode::NOT_FOUND, missing_key).into_response();
+            (StatusCode::NOT_FOUND, missing_key).into_response()
         }
         Err(err) => {
             tracing::error!("Failed to get data from Redis: {}", err);
             let fetch_error = REDIS_GET_ERROR.to_string().replace("{{ FN }}", &id_path);
-            return (StatusCode::INTERNAL_SERVER_ERROR, fetch_error).into_response();
+            (StatusCode::INTERNAL_SERVER_ERROR, fetch_error).into_response()
         }
     }
 }

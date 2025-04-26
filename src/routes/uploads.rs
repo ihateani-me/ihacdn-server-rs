@@ -108,130 +108,125 @@ pub(crate) async fn uploads_file(
     let mut file_state = None;
     while let Ok(Some(mut field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or_default();
-        match field_name {
-            "file" => {
-                let file_name =
-                    match generate_file_name(state.config.filename_length, &mut connection).await {
-                        Ok(file_name) => file_name,
-                        Err(err) => {
-                            let error = CUSTOM_NAME_GENERATION_ERROR
-                                .to_string()
-                                .replace("{{ REASON }}", &err);
-                            return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
-                        }
-                    };
-
-                let file_type = field.content_type().unwrap_or_default();
-                let file_name_orig = field.file_name().unwrap_or_default();
-                // Split at last dot
-                let file_extension = file_name_orig.split('.').last();
-
-                // Check if file type is allowed
-                if !state.config.is_filetype_allowed(file_type) {
-                    tracing::error!("File type not allowed: {}", file_type);
-                    let blocked_ext = BLOCKED_EXTENSION
-                        .to_string()
-                        .replace("{{ FILE_TYPE }}", file_type);
-                    return (StatusCode::UNSUPPORTED_MEDIA_TYPE, blocked_ext).into_response();
-                }
-                let file_ext_actual = match file_extension {
-                    Some(ext) => {
-                        if !state.config.is_extension_allowed(ext) {
-                            drop(file_state);
-                            tracing::error!("File extension not allowed: {}", ext);
-                            let blocked_ext = BLOCKED_EXTENSION
-                                .to_string()
-                                .replace("{{ FILE_TYPE }}", ext);
-                            return (StatusCode::UNSUPPORTED_MEDIA_TYPE, blocked_ext)
-                                .into_response();
-                        }
-                        ext
+        if field_name == "file" {
+            let file_name =
+                match generate_file_name(state.config.filename_length, &mut connection).await {
+                    Ok(file_name) => file_name,
+                    Err(err) => {
+                        let error = CUSTOM_NAME_GENERATION_ERROR
+                            .to_string()
+                            .replace("{{ REASON }}", &err);
+                        return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
                     }
-                    None => "bin",
-                }
-                .to_string();
-
-                let file_name_actual = format!("{}.{}", file_name, file_ext_actual);
-                let file_size_limit = state.config.get_limit(is_admin);
-
-                let mut initial_read = false;
-                let mut consumed_length = vec![];
-                let mut blocked_state = None;
-                let mut guess_type = None;
-                while let Ok(Some(chunk)) = field.chunk().await {
-                    let consumed_u8 = chunk.as_ref();
-                    if !initial_read {
-                        // read mimetype via magic number
-                        let gtype = tika_magic::from_u8(consumed_u8);
-                        if !state.config.is_filetype_allowed(gtype) {
-                            blocked_state = Some(ErrorState::BlockedExt(gtype.to_string()));
-                            break;
-                        }
-                        guess_type = Some(gtype.to_string());
-                        initial_read = true;
-                    }
-
-                    // Check if file size is too large
-                    if let Some(file_size_limit) = file_size_limit {
-                        let expected_length = consumed_length.len() as u64 + chunk.len() as u64;
-                        if expected_length > file_size_limit {
-                            blocked_state = Some(ErrorState::FileTooLarge(expected_length));
-                            break;
-                        }
-                    }
-
-                    consumed_length.extend_from_slice(chunk.as_ref());
-                }
-
-                if let Some(blocked_state) = blocked_state {
-                    drop(consumed_length);
-
-                    match blocked_state {
-                        ErrorState::BlockedExt(ext) => {
-                            tracing::error!("File extension not allowed: {}", ext);
-                            let blocked_ext = BLOCKED_EXTENSION
-                                .to_string()
-                                .replace("{{ FILE_TYPE }}", &ext);
-                            return (StatusCode::UNSUPPORTED_MEDIA_TYPE, blocked_ext)
-                                .into_response();
-                        }
-                        ErrorState::FileTooLarge(size) => {
-                            tracing::error!("File size too large: {}", size);
-                            let error_msg = PAYLOAD_TOO_LARGE
-                                .to_string()
-                                .replace("{{ FS }}", &humanize_bytes(file_size_limit.unwrap()))
-                                .replace("{{ FN }}", &file_name_actual);
-                            // TODO: This will break the connection and browser is fucking dumb and would return NETWORK_ERROR instead of actually the content body
-                            return (StatusCode::PAYLOAD_TOO_LARGE, error_msg).into_response();
-                        }
-                    }
-                }
-
-                let guessed_type = guess_type.unwrap_or("application/octet-stream".to_string());
-                let guessed_ext = match mime_guess::get_mime_extensions_str(&guessed_type) {
-                    Some(exts) => match exts.first() {
-                        Some(&ext) => {
-                            if ext == "bin" {
-                                file_ext_actual.to_string()
-                            } else {
-                                ext.to_string()
-                            }
-                        }
-                        None => file_ext_actual.to_string(),
-                    },
-                    None => file_ext_actual.to_string(),
                 };
 
-                file_state = Some(FileState {
-                    chunks: consumed_length,
-                    mime_types: guessed_type,
-                    extension: guessed_ext,
-                    real_extension: file_ext_actual,
-                    file_name,
-                });
-                break;
+            let file_type = field.content_type().unwrap_or_default();
+            let file_name_orig = field.file_name().unwrap_or_default();
+            // Split at last dot
+            let file_extension = file_name_orig.split('.').next_back();
+
+            // Check if file type is allowed
+            if !state.config.is_filetype_allowed(file_type) {
+                tracing::error!("File type not allowed: {}", file_type);
+                let blocked_ext = BLOCKED_EXTENSION
+                    .to_string()
+                    .replace("{{ FILE_TYPE }}", file_type);
+                return (StatusCode::UNSUPPORTED_MEDIA_TYPE, blocked_ext).into_response();
             }
-            _ => {}
+            let file_ext_actual = match file_extension {
+                Some(ext) => {
+                    if !state.config.is_extension_allowed(ext) {
+                        drop(file_state);
+                        tracing::error!("File extension not allowed: {}", ext);
+                        let blocked_ext = BLOCKED_EXTENSION
+                            .to_string()
+                            .replace("{{ FILE_TYPE }}", ext);
+                        return (StatusCode::UNSUPPORTED_MEDIA_TYPE, blocked_ext).into_response();
+                    }
+                    ext
+                }
+                None => "bin",
+            }
+            .to_string();
+
+            let file_name_actual = format!("{}.{}", file_name, file_ext_actual);
+            let file_size_limit = state.config.get_limit(is_admin);
+
+            let mut initial_read = false;
+            let mut consumed_length = vec![];
+            let mut blocked_state = None;
+            let mut guess_type = None;
+            while let Ok(Some(chunk)) = field.chunk().await {
+                let consumed_u8 = chunk.as_ref();
+                if !initial_read {
+                    // read mimetype via magic number
+                    let gtype = tika_magic::from_u8(consumed_u8);
+                    if !state.config.is_filetype_allowed(gtype) {
+                        blocked_state = Some(ErrorState::BlockedExt(gtype.to_string()));
+                        break;
+                    }
+                    guess_type = Some(gtype.to_string());
+                    initial_read = true;
+                }
+
+                // Check if file size is too large
+                if let Some(file_size_limit) = file_size_limit {
+                    let expected_length = consumed_length.len() as u64 + chunk.len() as u64;
+                    if expected_length > file_size_limit {
+                        blocked_state = Some(ErrorState::FileTooLarge(expected_length));
+                        break;
+                    }
+                }
+
+                consumed_length.extend_from_slice(chunk.as_ref());
+            }
+
+            if let Some(blocked_state) = blocked_state {
+                drop(consumed_length);
+
+                match blocked_state {
+                    ErrorState::BlockedExt(ext) => {
+                        tracing::error!("File extension not allowed: {}", ext);
+                        let blocked_ext = BLOCKED_EXTENSION
+                            .to_string()
+                            .replace("{{ FILE_TYPE }}", &ext);
+                        return (StatusCode::UNSUPPORTED_MEDIA_TYPE, blocked_ext).into_response();
+                    }
+                    ErrorState::FileTooLarge(size) => {
+                        tracing::error!("File size too large: {}", size);
+                        let error_msg = PAYLOAD_TOO_LARGE
+                            .to_string()
+                            .replace("{{ FS }}", &humanize_bytes(file_size_limit.unwrap()))
+                            .replace("{{ FN }}", &file_name_actual);
+                        // TODO: This will break the connection and browser is fucking dumb and would return NETWORK_ERROR instead of actually the content body
+                        return (StatusCode::PAYLOAD_TOO_LARGE, error_msg).into_response();
+                    }
+                }
+            }
+
+            let guessed_type = guess_type.unwrap_or("application/octet-stream".to_string());
+            let guessed_ext = match mime_guess::get_mime_extensions_str(&guessed_type) {
+                Some(exts) => match exts.first() {
+                    Some(&ext) => {
+                        if ext == "bin" {
+                            file_ext_actual.to_string()
+                        } else {
+                            ext.to_string()
+                        }
+                    }
+                    None => file_ext_actual.to_string(),
+                },
+                None => file_ext_actual.to_string(),
+            };
+
+            file_state = Some(FileState {
+                chunks: consumed_length,
+                mime_types: guessed_type,
+                extension: guessed_ext,
+                real_extension: file_ext_actual,
+                file_name,
+            });
+            break;
         }
     }
 
@@ -260,39 +255,33 @@ pub(crate) async fn uploads_file(
             return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
         }
     };
-    match file.write_all(&file_state.chunks).await {
-        Err(err) => {
-            tracing::error!("Failed to write file: {}", err);
-            let error = SAVE_FILE_ERROR
-                .to_string()
-                .replace("{{ FN }}", &file_name_actual)
-                .replace(
-                    "{{ REASON }}",
-                    &format!(
-                        "Unable to write file contents of {} bytes",
-                        file_state.chunks.len()
-                    ),
-                );
-            return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
-        }
-        _ => (),
+    if let Err(err) = file.write_all(&file_state.chunks).await {
+        tracing::error!("Failed to write file: {}", err);
+        let error = SAVE_FILE_ERROR
+            .to_string()
+            .replace("{{ FN }}", &file_name_actual)
+            .replace(
+                "{{ REASON }}",
+                &format!(
+                    "Unable to write file contents of {} bytes",
+                    file_state.chunks.len()
+                ),
+            );
+        return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
     }
-    match file.flush().await {
-        Err(err) => {
-            tracing::error!("Failed to flush file: {}", err);
-            let error = SAVE_FILE_ERROR
-                .to_string()
-                .replace("{{ FN }}", &file_name_actual)
-                .replace(
-                    "{{ REASON }}",
-                    &format!(
-                        "Unable to flush file contents of {} bytes",
-                        file_state.chunks.len()
-                    ),
-                );
-            return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
-        }
-        _ => (),
+    if let Err(err) = file.flush().await {
+        tracing::error!("Failed to flush file: {}", err);
+        let error = SAVE_FILE_ERROR
+            .to_string()
+            .replace("{{ FN }}", &file_name_actual)
+            .replace(
+                "{{ REASON }}",
+                &format!(
+                    "Unable to flush file contents of {} bytes",
+                    file_state.chunks.len()
+                ),
+            );
+        return (StatusCode::INTERNAL_SERVER_ERROR, error).into_response();
     }
 
     // close file to release the lock
@@ -322,7 +311,7 @@ pub(crate) async fn uploads_file(
 
     // Set to redis
     match redis::cmd("SET")
-        .arg(&format!("{PREFIX}{}", file_state.file_name))
+        .arg(format!("{PREFIX}{}", file_state.file_name))
         .arg(serde_json::to_string(&cdn_data).unwrap())
         .exec_async(&mut connection)
         .await
@@ -338,7 +327,7 @@ pub(crate) async fn uploads_file(
     let final_url = state.config.make_url(&file_name_actual);
 
     notify_discord(&final_url, cdn_data, &state.config, ip_address);
-    return (StatusCode::OK, final_url).into_response();
+    (StatusCode::OK, final_url).into_response()
 }
 
 pub(crate) async fn shorten_url(
@@ -382,7 +371,7 @@ pub(crate) async fn shorten_url(
 
     // Set to redis
     match redis::cmd("SET")
-        .arg(&format!("{PREFIX}{}", file_name))
+        .arg(format!("{PREFIX}{}", file_name))
         .arg(serde_json::to_string(&cdn_data).unwrap())
         .exec_async(&mut connection)
         .await
@@ -398,5 +387,5 @@ pub(crate) async fn shorten_url(
     let final_url = state.config.make_url(&file_name);
 
     notify_discord(&final_url, cdn_data, &state.config, ip_address);
-    return (StatusCode::OK, final_url).into_response();
+    (StatusCode::OK, final_url).into_response()
 }

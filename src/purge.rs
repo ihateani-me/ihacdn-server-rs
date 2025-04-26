@@ -32,7 +32,7 @@ pub async fn purge_task(state: Arc<SharedState>) -> Result<(), Box<dyn std::erro
     let mut keys_to_be_deleted = vec![];
     for (keys_meta, key) in keys_metadata.iter().zip(available_keys.iter()) {
         if let Some(value) = keys_meta {
-            let serde_data = serde_json::from_str::<CDNData>(&value)?;
+            let serde_data = serde_json::from_str::<CDNData>(value)?;
             // check file size
             if serde_data.is_expired(&state.config).await {
                 keys_to_be_deleted.push((key.clone(), serde_data));

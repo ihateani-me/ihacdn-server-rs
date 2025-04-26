@@ -108,13 +108,9 @@ async fn main() {
         .with_state(Arc::clone(&shared_state));
 
     tracing::info!("🌐 Creating HTTP listener...");
-    let listener = TcpListener::bind(format!(
-        "{}:{}",
-        config.host.clone(),
-        config.port.to_string()
-    ))
-    .await
-    .unwrap();
+    let listener = TcpListener::bind(format!("{}:{}", config.host.clone(), config.port))
+        .await
+        .unwrap();
 
     // Start tasks
     tracing::info!("⚡ Preparing task scheduler...");
