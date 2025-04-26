@@ -133,8 +133,7 @@
                     ]
                 }
             );
-            const targetWrap = document.getElementById("target-wrap");
-            targetWrap.outerHTML = `<div id="content-code" class="${contentCode.className}">${innerHTML}</div>`;
+            contentCode.outerHTML = `<div id="content-code" class="${contentCode.className}">${innerHTML}</div>`;
         })();
     </script>
 </body>

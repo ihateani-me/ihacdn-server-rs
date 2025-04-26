@@ -14,7 +14,7 @@ use crate::{
         CDNData, DELETED_ERROR, PREFIX, READ_FILE_ERROR, REDIS_CONNECTION_ERROR, REDIS_GET_ERROR,
         SharedState,
     },
-    templating::{HtmlTemplate, TemplateCodeData, TemplatePaste},
+    templating::{HtmlTemplate, TemplatePaste},
 };
 
 pub async fn file_reader(
@@ -108,7 +108,7 @@ pub async fn file_reader(
 
                             let tpl = TemplatePaste {
                                 code_type: prefer_type,
-                                code_data: TemplateCodeData::new(content),
+                                code_data: content,
                                 file_id: raw_id,
                             };
                             HtmlTemplate::new(tpl).into_response()
