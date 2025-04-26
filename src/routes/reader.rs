@@ -237,3 +237,152 @@ pub async fn file_reader(
         }
     }
 }
+
+pub async fn file_reader_raw(
+    method: axum::http::Method,
+    State(state): State<Arc<SharedState>>,
+    Path(id_path): Path<String>,
+) -> Response {
+    // Placeholder for file reading logic
+    let mut connection = match state.make_connection().await {
+        Ok(connection) => connection,
+        Err(err) => {
+            tracing::error!("Failed to connect to Redis: {}", err);
+            return (StatusCode::INTERNAL_SERVER_ERROR, REDIS_CONNECTION_ERROR).into_response();
+        }
+    };
+
+    // Split id_path into ID and extension
+    let (raw_id, _) = match id_path.rsplit_once('.') {
+        Some((id, ext)) => (id.to_string(), ext.to_string()),
+        None => (id_path.clone(), String::new()),
+    };
+
+    match redis::cmd("GET")
+        .arg(format!("{PREFIX}{}", &raw_id))
+        .query_async::<Option<String>>(&mut connection)
+        .await
+    {
+        Ok(Some(data)) => {
+            let parsed_data = match serde_json::from_str::<CDNData>(&data) {
+                Ok(parsed_data) => parsed_data,
+                Err(err) => {
+                    tracing::error!("Failed to parse data: {}", err);
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse data")
+                        .into_response();
+                }
+            };
+
+            match parsed_data {
+                CDNData::Code {
+                    is_admin: _,
+                    path,
+                    mimetype,
+                    time_added: _,
+                } => {
+                    let actual_mimetype = match mime_guess::from_ext(&mimetype)
+                        .first()
+                        .map(|m| m.essence_str().to_string())
+                    {
+                        Some(mime) => mime,
+                        None => "text/plain".to_string(),
+                    };
+
+                    if method == axum::http::Method::HEAD {
+                        // Peek file if exists
+                        let mut builder = axum::http::Response::builder();
+                        let headers = builder.headers_mut().unwrap();
+
+                        headers.insert(
+                            axum::http::header::CONTENT_TYPE,
+                            actual_mimetype.parse().unwrap(),
+                        );
+
+                        match tokio::fs::try_exists(path).await {
+                            Ok(true) => {
+                                return builder
+                                    .status(axum::http::StatusCode::OK)
+                                    .body(Body::empty())
+                                    .unwrap()
+                                    .into_response();
+                            }
+                            Ok(false) => {
+                                return builder
+                                    .status(axum::http::StatusCode::GONE)
+                                    .body(Body::empty())
+                                    .unwrap()
+                                    .into_response();
+                            }
+                            Err(err) => {
+                                if err.kind() == std::io::ErrorKind::NotFound {
+                                    return builder
+                                        .status(axum::http::StatusCode::GONE)
+                                        .body(Body::empty())
+                                        .unwrap()
+                                        .into_response();
+                                } else {
+                                    return builder
+                                        .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                                        .body(Body::empty())
+                                        .unwrap()
+                                        .into_response();
+                                };
+                            }
+                        }
+                    };
+
+                    // send as attachment data
+                    match tokio::fs::read_to_string(&path).await {
+                        Ok(content) => {
+                            let builder = axum::http::Response::builder()
+                                .header(
+                                    axum::http::header::CONTENT_DISPOSITION,
+                                    format!(
+                                        "attachment; filename=\"{}\"",
+                                        path.file_name().unwrap_or_default().to_string_lossy()
+                                    ),
+                                )
+                                .header(axum::http::header::CONTENT_LENGTH, content.len())
+                                .header(axum::http::header::CONTENT_TYPE, actual_mimetype)
+                                .body(Body::from(content))
+                                .unwrap();
+                            return builder.into_response();
+                        }
+                        Err(err) => {
+                            if err.kind() == std::io::ErrorKind::NotFound {
+                                tracing::warn!("File not found: {}", path.display());
+                                let missing_key =
+                                    DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
+                                return (StatusCode::GONE, missing_key).into_response();
+                            } else {
+                                tracing::error!("Failed to read file: {}", err);
+                                let read_error =
+                                    READ_FILE_ERROR.to_string().replace("{{ FN }}", &id_path);
+                                return (StatusCode::INTERNAL_SERVER_ERROR, read_error)
+                                    .into_response();
+                            };
+                        }
+                    }
+                }
+                CDNData::File { .. } => {
+                    let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
+                    return (StatusCode::NOT_FOUND, missing_key).into_response();
+                }
+                CDNData::Short { .. } => {
+                    let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
+                    return (StatusCode::NOT_FOUND, missing_key).into_response();
+                }
+            }
+        }
+        Ok(None) => {
+            tracing::warn!("No data found for ID: {}", raw_id);
+            let missing_key = DELETED_ERROR.to_string().replace("{{ FN }}", &id_path);
+            return (StatusCode::NOT_FOUND, missing_key).into_response();
+        }
+        Err(err) => {
+            tracing::error!("Failed to get data from Redis: {}", err);
+            let fetch_error = REDIS_GET_ERROR.to_string().replace("{{ FN }}", &id_path);
+            return (StatusCode::INTERNAL_SERVER_ERROR, fetch_error).into_response();
+        }
+    }
+}

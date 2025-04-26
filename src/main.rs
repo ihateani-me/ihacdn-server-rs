@@ -86,6 +86,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index))
         .route("/{id_path}", get(routes::reader::file_reader))
+        .route("/{id_path}/raw", get(routes::reader::file_reader_raw))
         .route("/_/health", get(|| async { "OK" }))
         .route(
             "/upload",
