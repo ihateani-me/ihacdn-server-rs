@@ -25,17 +25,9 @@ const ASSET_FAVICON_PNG: &[u8] = include_bytes!("../assets/favicon.png");
 
 #[tokio::main]
 async fn main() {
-    // get current working directory
-    let cwd = std::env::current_dir().unwrap();
-
     // load the configuration file
     let config = config::IhaCdnConfig::load();
 
-    let log_dir = cwd.join("logs");
-    tokio::fs::create_dir_all(&log_dir).await.unwrap();
-
-    let log_file = tracing_appender::rolling::daily(log_dir, "access.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(log_file);
     let merged_env_trace = "ihacdn=debug,tower_http=debug,axum::rejection=trace";
 
     // Initialize tracing logger
@@ -52,7 +44,6 @@ async fn main() {
                 .unwrap_or_else(|_| merged_env_trace.parse().unwrap()),
         )
         .with(tracing_subscriber::fmt::layer())
-        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
         .init();
 
     let version = env!("CARGO_PKG_VERSION");
