@@ -1,4 +1,4 @@
-use askama::Template;
+use askama::{FastWritable, Template};
 use axum::{http::StatusCode, response::IntoResponse};
 
 pub struct TemplateIndexRetention {
@@ -17,12 +17,38 @@ pub struct TemplateIndex {
     pub file_retention: Option<TemplateIndexRetention>,
 }
 
+pub struct TemplateCodeData(String);
+
+impl TemplateCodeData {
+    pub fn new(code_data: String) -> Self {
+        TemplateCodeData(code_data)
+    }
+}
+
+impl std::fmt::Display for TemplateCodeData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FastWritable for TemplateCodeData {
+    fn write_into<W: core::fmt::Write + ?Sized>(
+        &self,
+        dest: &mut W,
+        _values: &dyn askama::Values,
+    ) -> askama::Result<()> {
+        dest.write_str(&self.0)?;
+        Ok(())
+    }
+}
+
+impl askama::filters::HtmlSafe for TemplateCodeData {}
+
 #[derive(Template)]
 #[template(path = "paste.html")]
 pub struct TemplatePaste {
-    pub snippets: String,
     pub code_type: String,
-    pub code_data: String,
+    pub code_data: TemplateCodeData,
     pub file_id: String,
 }
 

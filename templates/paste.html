@@ -4,10 +4,11 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ file_id }} - ihaPaste</title>
-    <meta name="description" content="{{ snippets }} ...">
+    <meta name="description" content="{{ code_data | truncate(30) }}">
     <meta property="og:title" content="ihaPaste">
-    <meta property="og:description" content="{{ snippets }} ...">
+    <meta property="og:description" content="{{ code_data | truncate(30) }}">
     <meta name="theme-color" content="#3DCE70">
     <meta property="og:image" content="/static/img/favicon.png">
     <link rel="icon" type="image/png" href="/static/img/favicon.png" />
@@ -58,8 +59,12 @@
             line-height: 1.5rem;
         }
 
+        #root {
+            position: relative;
+        }
+
         .raw-data-code {
-            position: absolute;
+            position: fixed;
             top: 1rem;
             right: 1rem;
             margin: 0px;
@@ -92,18 +97,10 @@
 </head>
 
 <body>
-    <code id="content-code" class="{{ code_type }}">{{ code_data }}</code>
-    <div class="raw-data-code">raw</div>
-    <script type="text/javascript">
-        "use strict";
-
-        (function () {
-            const codeElem = document.querySelector(".raw-data-code");
-            codeElem.onclick = function () {
-                window.open("/{{ file_id }}/raw", "_blank", "noreferrer noopener")
-            };
-        })();
-    </script>
+    <div id="root">
+        <pre id="target-wrap"><code id="content-code" class="{{ code_type }}">{{ code_data }}</code></pre>
+        <a href="/{{ file_id }}/raw" target="_blank" rel="noopener noreferrer" class="raw-data-code">raw</a>
+    </div>
     <script type="module">
         import { createHighlighter } from 'https://esm.sh/shiki@3.0.0';
 
@@ -119,7 +116,7 @@
             const contentCode = document.getElementById("content-code");
             // change node from code to div
             const innerHTML = await highlighter.codeToHtml(
-                contentCode.innerHTML,
+                contentCode.innerText,
                 {
                     lang: "{{ code_type }}",
                     theme: "catppuccin-mocha",
@@ -136,7 +133,8 @@
                     ]
                 }
             );
-            contentCode.outerHTML = `<div id="content-code" class="${contentCode.className}">${innerHTML}</div>`;
+            const targetWrap = document.getElementById("target-wrap");
+            targetWrap.outerHTML = `<div id="content-code" class="${contentCode.className}">${innerHTML}</div>`;
         })();
     </script>
 </body>

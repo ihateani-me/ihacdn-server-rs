@@ -14,7 +14,7 @@ use crate::{
         CDNData, DELETED_ERROR, PREFIX, READ_FILE_ERROR, REDIS_CONNECTION_ERROR, REDIS_GET_ERROR,
         SharedState,
     },
-    templating::{HtmlTemplate, TemplatePaste},
+    templating::{HtmlTemplate, TemplateCodeData, TemplatePaste},
 };
 
 pub async fn file_reader(
@@ -106,13 +106,9 @@ pub async fn file_reader(
                             // Render the HTML content
                             let prefer_type = if ext.is_empty() { mimetype } else { ext };
 
-                            // Get the first 15 chars, make sure this doesn't panic if the string is too short
-                            let code_snippets = content.chars().take(15).collect::<String>();
-
                             let tpl = TemplatePaste {
-                                snippets: code_snippets,
                                 code_type: prefer_type,
-                                code_data: content,
+                                code_data: TemplateCodeData::new(content),
                                 file_id: raw_id,
                             };
                             HtmlTemplate::new(tpl).into_response()

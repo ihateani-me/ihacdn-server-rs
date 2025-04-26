@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ihaCDN - Home</title>
     <meta name="description" content="ihateani.me File Sharing Service.">
     <meta property="og:title" content="ihaCDN">
@@ -171,92 +172,94 @@
     {% endif %}
     <script src="https://cdn.jsdelivr.net/npm/axios@1.9.0/dist/axios.min.js" integrity="sha256-zKmDh+GEVvPxPFFi3MzpYO1/ZsLgeJ1sFSz2oSvBG6Y=" crossorigin="anonymous"></script>
     <script>
-        const upload_form = document.getElementById("upload_form"),
-            upload_info = document.getElementById("upload_info"),
-            upload_btn = document.getElementById("upload_btn");
-        const shorten_form = document.getElementById("shorten_form"),
-            shorten_info = document.getElementById("shorten_info"),
-            shorten_btn = document.getElementById("shorten_btn");
+        (() => {
+            const upload_form = document.getElementById("upload_form"),
+                upload_info = document.getElementById("upload_info"),
+                upload_btn = document.getElementById("upload_btn");
+            const shorten_form = document.getElementById("shorten_form"),
+                shorten_info = document.getElementById("shorten_info"),
+                shorten_btn = document.getElementById("shorten_btn");
 
-        // https://stackoverflow.com/a/5717133/13274776
-        function validURL(str) {
-            var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
-                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
-                '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
-                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
-                '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
-                '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
-            return !!pattern.test(str);
-        }
+            // https://stackoverflow.com/a/5717133/13274776
+            function validURL(str) {
+                var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+                    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+                    '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+                    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+                    '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+                    '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+                return !!pattern.test(str);
+            }
 
-        upload_btn.addEventListener("click", function (event) {
-            event.preventDefault();
-            upload_info.innerHTML = "";
-            if (!upload_form.files.length) {
-                upload_info.innerText = "Please select a file.";
-            } else {
-                upload_info.innerText = "Uploading..."
-                let uploadPackage = new FormData();
-                uploadPackage.append("file", upload_form.files[0]);
-                axios.request({
-                    method: "POST",
-                    url: "/upload",
-                    data: uploadPackage,
-                    onUploadProgress: (p) => {
-                        let progress = ((p.loaded / p.total) * 100).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        });
-                        upload_info.innerText = `Uploading... ${progress}%`
-
-                    }
-                }).then(ress => {
-                    let data = ress.data;
-                    upload_info.innerText = "";
-                    if (data.startsWith("http")) {
-                        upload_info.innerHTML = `<a href="${data}">${data}</a>`;
-                    } else {
-                        upload_info.innerText = data;
-                    }
-                }).catch(error => {
-                    upload_info.innerText = error?.toString() ?? "Unknown error.";
-                })
-            };
-        });
-
-        shorten_btn.addEventListener("click", function (event) {
-            event.preventDefault();
-            shorten_info.innerHTML = "";
-            if (!shorten_form.value.length) {
-                shorten_info.innerText = "Please enter URL.";
-            } else {
-                if (!validURL(shorten_form.value)) {
-                    shorten_info.innerText = "Not a valid URL."
+            upload_btn.addEventListener("click", function (event) {
+                event.preventDefault();
+                upload_info.innerHTML = "";
+                if (!upload_form.files.length) {
+                    upload_info.innerText = "Please select a file.";
                 } else {
-                    shorten_info.innerText = "Shortening...";
-                    let url_form = new FormData();
-                    url_form.append("url", shorten_form.value)
-                    fetch(
-                            "/short", {
-                                method: "POST",
-                                body: url_form
-                            }
-                        )
-                        .then(response => response.text())
-                        .then(data => {
-                            shorten_info.innerText = "";
-                            if (data.startsWith("http")) {
-                                shorten_info.innerHTML = `<a href="${data}">${data}</a>`;
-                            } else {
-                                shorten_info.innerText = data;
-                            }
-                        })
-                        .catch(error => {
-                            shorten_info.innerText = error;
-                        });
+                    upload_info.innerText = "Uploading..."
+                    let uploadPackage = new FormData();
+                    uploadPackage.append("file", upload_form.files[0]);
+                    axios.request({
+                        method: "POST",
+                        url: "/upload",
+                        data: uploadPackage,
+                        onUploadProgress: (p) => {
+                            let progress = ((p.loaded / p.total) * 100).toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                            upload_info.innerText = `Uploading... ${progress}%`
+
+                        }
+                    }).then(ress => {
+                        let data = ress.data;
+                        upload_info.innerText = "";
+                        if (data.startsWith("http")) {
+                            upload_info.innerHTML = `<a href="${data}">${data}</a>`;
+                        } else {
+                            upload_info.innerText = data;
+                        }
+                    }).catch(error => {
+                        upload_info.innerText = error?.toString() ?? "Unknown error.";
+                    })
                 };
-            };
-        });
+            });
+
+            shorten_btn.addEventListener("click", function (event) {
+                event.preventDefault();
+                shorten_info.innerHTML = "";
+                if (!shorten_form.value.length) {
+                    shorten_info.innerText = "Please enter URL.";
+                } else {
+                    if (!validURL(shorten_form.value)) {
+                        shorten_info.innerText = "Not a valid URL."
+                    } else {
+                        shorten_info.innerText = "Shortening...";
+                        let url_form = new FormData();
+                        url_form.append("url", shorten_form.value)
+                        fetch(
+                                "/short", {
+                                    method: "POST",
+                                    body: url_form
+                                }
+                            )
+                            .then(response => response.text())
+                            .then(data => {
+                                shorten_info.innerText = "";
+                                if (data.startsWith("http")) {
+                                    shorten_info.innerHTML = `<a href="${data}">${data}</a>`;
+                                } else {
+                                    shorten_info.innerText = data;
+                                }
+                            })
+                            .catch(error => {
+                                shorten_info.innerText = error;
+                            });
+                    };
+                };
+            });
+        })();
     </script>
 </body>
 
