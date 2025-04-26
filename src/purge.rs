@@ -6,6 +6,11 @@ pub async fn purge_task(state: Arc<SharedState>) -> Result<(), Box<dyn std::erro
     // Perform the purge task
     tracing::info!("Running purge task...");
 
+    if !state.config.retention.enable {
+        tracing::info!("Retention is disabled, skipping purge task.");
+        return Ok(());
+    }
+
     let mut connection = state.make_connection().await?;
 
     let available_keys = redis::cmd("KEYS")

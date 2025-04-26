@@ -44,6 +44,7 @@ What you need:
 - Rust 1.85.0
 - Redis 7
 
+To install and run:
 1. Download Rust and other build requirements
 2. Clone this repository
 3. Rename `config.json.example` to `config.json`
@@ -133,8 +134,6 @@ Explanation:
 [To be written.]
 
 ## Deployment
-
-To deploy, 
 
 If you're using Reverse Proxy like Nginx, it's recommended to set `client_max_body_size` to make sure you can upload large files.<br>
 You can either put it on `http` block on `/etc/nginx/nginx.conf` or the `server` block on `sites-available` conf.
