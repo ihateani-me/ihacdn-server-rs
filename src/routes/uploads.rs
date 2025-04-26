@@ -337,7 +337,7 @@ pub(crate) async fn uploads_file(
     let ip_address = extract_ip_address(&headers);
     let final_url = state.config.make_url(&file_name_actual);
 
-    notify_discord(cdn_data, &state.config, ip_address);
+    notify_discord(&final_url, cdn_data, &state.config, ip_address);
     return (StatusCode::OK, final_url).into_response();
 }
 
@@ -397,6 +397,6 @@ pub(crate) async fn shorten_url(
     let ip_address = extract_ip_address(&headers);
     let final_url = state.config.make_url(&file_name);
 
-    notify_discord(cdn_data, &state.config, ip_address);
+    notify_discord(&final_url, cdn_data, &state.config, ip_address);
     return (StatusCode::OK, final_url).into_response();
 }

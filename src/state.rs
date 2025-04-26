@@ -37,6 +37,14 @@ pub enum CDNData {
 }
 
 impl CDNData {
+    pub fn is_admin(&self) -> bool {
+        match self {
+            CDNData::Short { .. } => false,
+            CDNData::File { is_admin, .. } => *is_admin,
+            CDNData::Code { is_admin, .. } => *is_admin,
+        }
+    }
+
     pub async fn is_expired(&self, config: &Arc<IhaCdnConfig>) -> bool {
         let now_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

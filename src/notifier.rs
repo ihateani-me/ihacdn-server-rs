@@ -76,7 +76,12 @@ fn is_private_ip(ip: IpAddr) -> bool {
 }
 
 // Actual notifier code
-pub fn notify_discord(cdn_data: CDNData, config: &Arc<IhaCdnConfig>, ip_address: Vec<IpAddr>) {
+pub fn notify_discord(
+    final_url: impl Into<String>,
+    cdn_data: CDNData,
+    config: &Arc<IhaCdnConfig>,
+    ip_address: Vec<IpAddr>,
+) {
     if !config.notifier.enable {
         return;
     }
@@ -94,4 +99,58 @@ pub fn notify_discord(cdn_data: CDNData, config: &Arc<IhaCdnConfig>, ip_address:
             return;
         }
     };
+
+    let final_url = final_url.into();
+    tokio::spawn(async move {
+        let ip_address = ip_address
+            .iter()
+            .map(|ip| ip.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+        let ip_address = if ip_address.is_empty() {
+            "Unknown IP".to_string()
+        } else {
+            ip_address
+        };
+        let mut msg_contents = vec![format!("Uploader IPs: **{}**", ip_address)];
+        match cdn_data {
+            CDNData::Short { .. } => {
+                msg_contents.push(format!("Short URL: **<{}>**", final_url));
+            }
+            _ => {
+                msg_contents.push(format!("File: **<{}>**", final_url));
+            }
+        }
+        let is_admin = if cdn_data.is_admin() { "Yes" } else { "No" };
+        msg_contents.push(format!("Is Admin? **{}**", is_admin));
+
+        let serde_data = serde_json::json!({
+            "content": msg_contents.join("\n"),
+            "avatar_url": "https://p.ihateani.me/static/img/favicon.png",
+            "username": "ihaCDN Notificator",
+            "tts": false,
+        });
+
+        let body_data = serde_json::to_string(&serde_data).unwrap();
+
+        // post to discord webhook
+        match reqwest::Client::new()
+            .post(webhook_url)
+            .body(body_data)
+            .header("Content-Type", "application/json")
+            .header(
+                "User-Agent",
+                "ihacdn-rs/0.1.0 (+https://github.com/ihateani-me/ihacdn-server-rs)",
+            )
+            .send()
+            .await
+        {
+            Ok(_) => {
+                tracing::info!("Discord notification sent successfully.");
+            }
+            Err(e) => {
+                tracing::error!("Failed to send Discord notification: {}", e);
+            }
+        }
+    });
 }
