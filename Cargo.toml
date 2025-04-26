@@ -1,0 +1,54 @@
+[package]
+name = "ihacdn"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Stuff
+rand = { version = "0.9.1", default-features = false, features = ["std", "thread_rng"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+
+# Async/Futures
+tokio = { version = "1.44.2", features = ["full", "tracing"] }
+tokio-util = { version = "0.7.15", features = ["io"] }
+tokio-cron-scheduler = "0.13.0"
+futures-util = { version = "0.3.31", default-features = false, features = ["std"] }
+
+# File server
+mime_guess = "2.0.5"
+tika-magic = { version = "0.2.1" }
+
+# Templating
+askama = "0.14.0"
+
+# Web server
+axum = { version = "0.8.3", default-features = false, features = [
+    "http1",
+    "http2",
+    "matched-path",
+    "original-uri",
+    "tokio",
+    "tower-log",
+    "tracing",
+    "multipart",
+    "form",
+    "macros",
+] }
+axum-extra = { version = "0.10.1", default-features = false, features = ["tracing", "async-read-body"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-appender = "0.2.3"
+tower-http = { version = "0.6.2", features = ["cors", "trace", "limit"] }
+tower-service = "0.3.3"
+tower-layer = "0.3.3"
+
+# Database
+redis = { version = "0.30.0", default-features = false, features = ["acl", "keep-alive", "tokio-comp"] }
+url = "2.5.4"
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 1
+incremental = false

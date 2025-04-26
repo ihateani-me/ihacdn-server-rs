@@ -1,0 +1,42 @@
+{
+    "hostname": "localhost",
+    "https_mode": false,
+    "port": 5555,
+    "upload_path": "./",
+    "admin_password": "pleasechangethis",
+    "filename_length": 8,
+    "redis": "redis://127.0.0.1:6379",
+    "notifier": {
+        "enable": false,
+        "discord_webhook": null
+    },
+    "file_retention": {
+        "enable": false,
+        "min_age": 30,
+        "max_age": 180
+    },
+    "storage": {
+        "filesize_limit": 524288,
+        "admin_filesize_limit": null
+    },
+    "blocklist": {
+        "extension": [
+            "exe",
+            "sh",
+            "msi",
+            "bat",
+            "dll",
+            "com"
+        ],
+        "content_type": [
+            "text/x-sh",
+            "text/x-msdos-batch",
+            "application/x-dosexec",
+            "application/x-msdownload",
+            "application/vnd.microsoft.portable-executable",
+            "application/x-msi",
+            "application/x-msdos-program",
+            "application/x-sh"
+        ]
+    }
+}

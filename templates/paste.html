@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>{{ file_id }} - ihaPaste</title>
+    <meta name="description" content="{{ snippets }} ...">
+    <meta property="og:title" content="ihaPaste">
+    <meta property="og:description" content="{{ snippets }} ...">
+    <meta name="theme-color" content="#3DCE70">
+    <meta property="og:image" content="/static/img/favicon.png">
+    <link rel="icon" type="image/png" href="/static/img/favicon.png" />
+    <link rel="icon" href="/static/img/favicon.ico" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #191724;
+            color: #E0DEF4;
+            min-width: 100vw;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        #content-code {
+            padding: 1rem;
+            font-family: "IBM Plex Mono", monospace;
+            font-weight: 400;
+            font-size: 12px;
+            line-height: 1.5rem;
+        }
+
+        #content-code pre {
+            margin: 0;
+            padding: 0;
+            font-family: "IBM Plex Mono", monospace;
+            font-weight: 400;
+        }
+
+        .shiki-line-n::before {
+            content: var(--shiki-line-number);
+            width: 1rem;
+            margin-right: 1rem;
+            display: inline-block;
+            text-align: right;
+            color: #e0def4;
+            opacity: 0.6;
+        }
+
+        .shiki span {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 12px;
+            line-height: 1.5rem;
+        }
+
+        .raw-data-code {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            margin: 0px;
+            border-radius: 6px;
+            padding: 0.75rem 0.75rem;
+            background-color: #2d2f40;
+            color: rgb(157, 207, 216);
+            font-family: "IBM Plex Mono", monospace;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.25s ease;
+            opacity: 0.6;
+        }
+
+        .raw-data-code > * {
+            margin: 0px;
+        }
+
+        .raw-data-code:hover {
+            text-decoration: dotted underline;
+            opacity: 0.8;
+        }
+
+        #content-code {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <code id="content-code" class="{{ code_type }}">{{ code_data }}</code>
+    <div class="raw-data-code">raw</div>
+    <script type="text/javascript">
+        "use strict";
+
+        (function () {
+            const codeElem = document.querySelector(".raw-data-code");
+            codeElem.onclick = function () {
+                window.open("/{{ file_id }}/raw", "_blank", "noreferrer noopener")
+            };
+        })();
+    </script>
+    <script type="module">
+        import { createHighlighter } from 'https://esm.sh/shiki@3.0.0';
+
+        (async () => {
+            const highlighter = await createHighlighter({
+                langs: ['js', 'python', 'html', 'css', 'json', 'bash', 'cpp', 'java', '{{ code_type }}'],
+                themes: ['catppuccin-mocha'],
+                langAlias: {
+                    vpy: 'python',
+                },
+            });
+
+            const contentCode = document.getElementById("content-code");
+            // change node from code to div
+            const innerHTML = await highlighter.codeToHtml(
+                contentCode.innerHTML,
+                {
+                    lang: "{{ code_type }}",
+                    theme: "catppuccin-mocha",
+                    transformers: [
+                        {
+                            line(node, line) {
+                                const currentStyle = node.properties.style ?? "";
+                                const newStyle = `${currentStyle};--shiki-line-number: "${line}"`;
+                                node.properties.style = newStyle;
+                                this.addClassToHast(node, "shiki-line-n");
+                                return node;
+                            }
+                        }
+                    ]
+                }
+            );
+            contentCode.outerHTML = `<div id="content-code" class="${contentCode.className}">${innerHTML}</div>`;
+        })();
+    </script>
+</body>
+</html>

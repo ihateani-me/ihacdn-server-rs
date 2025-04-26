@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>ihaCDN - Home</title>
+    <meta name="description" content="ihateani.me File Sharing Service.">
+    <meta property="og:title" content="ihaCDN">
+    <meta property="og:description" content="ihateani.me File Sharing Service.">
+    <meta property="og:image" content="/static/img/favicon.png">
+    <meta name="theme-color" content="#3DCE70">
+    <link rel="icon" type="image/png" href="/static/img/favicon.png" />
+    <link rel="icon" href="/static/img/favicon.ico" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        .monospace {
+            font-family: "IBM Mono Plex", monospace;
+        }
+
+        * {
+            font-family: "IBM Mono Plex", monospace;
+            line-height: 1.3rem;
+            font-size: 0.9rem;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        a:hover,
+        a:active {
+            text-decoration: underline;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #15151a;
+                color: #9cf2d6;
+            }
+
+            .header-text {
+                color: #c9d5f7;
+                font-weight: 700;
+            }
+
+            a,
+            a:hover,
+            a:active,
+            a:visited {
+                color: #fff8a0;
+                text-shadow: 0 0 6px #e4e4e7;
+            }
+
+            strong {
+                color: #90e3ec;
+                font-weight: 700;
+            }
+
+            .cb-example {
+                background-color: #262626;
+                color: #89ff98;
+                padding: 0.2rem;
+                margin-top: 0.4rem;
+                margin-bottom: 0.4rem;
+                margin-left: 1.25rem;
+            }
+
+            input {
+                background-color: #262626;
+                color: #89ff98;
+            }
+
+            .text-in {
+                border: 0px;
+                padding: 0.2rem;
+            }
+
+            .btn-in {
+                border: 0px;
+                padding: 0.2rem 0.4rem;
+                font-weight: bolder;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <code class="header-text">&lt;/&gt; The ihateani.me File Sharing Service &lt;/&gt;</code><br>
+    <code>=============================================</code><br><br>
+    <code><strong>Usage:</strong></code><br>
+    <code>&nbsp;Upload File via POST:</code><br>
+    {% if https_mode %}
+    <code class="cb-example">curl -X POST -F "file=@yourfile.png" https://{{ hostname }}/upload</code><br>
+    <code>&nbsp;Shorten URL via POST:</code><br>
+    <code class="cb-example">curl -X POST -F "url=http://your.long/ass/url/that/you/want/to/shorten"
+        https://{{ hostname }}/short</code><br><br>
+    {% else %}
+    <code class="cb-example">curl -X POST -F "file=@yourfile.png" http://{{ hostname }}/upload</code><br>
+    <code>Shorten URL via POST:</code><br>
+    <code class="cb-example">curl -X POST -F "url=http://your.long/ass/url/that/you/want/to/shorten"
+        http://{{ hostname }}/short</code><br><br>
+    {% endif %}
+    <code>
+        <strong>SXCU (ShareX) File:</strong><br>
+        &nbsp;&nbsp;Download here: <a
+            href="https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2Fnoaione%2Fihacdn-server%2Ftree%2Fmaster%2Fsharex">GitHub</a>
+    </code>
+    <br><br>
+    <code>
+        <strong>Filesize Limit:</strong> {% if let Some(filesize_limit) = filesize_limit %}{{ filesize_limit }}{% else %}None{% endif %}
+    </code>
+    <br>
+    <br>
+    {% if blacklist_extensions.len() > 0 %}
+    <code>
+        <strong>The following extension are prohibited:</strong><br>
+        &nbsp;
+        {% for ext in blacklist_extensions %}
+        {{ ext }}
+        {% endfor %}
+    </code>
+    <br>
+    {% endif %}
+    {% if blacklist_ctypes.len() > 0 %}
+    <br>
+    <code>
+        <strong>The following Content-Type are prohibited:</strong><br>
+        {% for ctype in blacklist_ctypes %}
+        &nbsp;- {{ ctype }}<br>
+        {% endfor %}
+    </code>
+    {% endif %}
+    <br>
+    <code><strong>&lt;/&gt; Source Code &lt;/&gt;</strong></code><br>
+    <code>&nbsp;&nbsp;<a
+            href="https://github.com/ihateani-me/ihacdn-server-rs">https://github.com/ihateani-me/ihacdn-server-rs</a></code><br>
+    <br>
+    <code><strong>Upload File:</strong></code>
+    <form name="uploadForm" class="monospace">
+        <div class="monospace">
+            <input class="monospace" id="upload_form" type="file" name="file">
+            <input class="monospace btn-in" id="upload_btn" type="submit" value="Upload">
+        </div>
+        <br>
+        <code id="upload_info">Waiting for input...</code>
+    </form>
+    <br>
+    <code><strong>Shorten Link:</strong></code><br>
+    <form name="linkShorten" class="monospace">
+        <div class="monospace">
+            <input class="monospace text-in" id="shorten_form" name="url">
+            <input class="monospace btn-in" id="shorten_btn" type="submit" value="Shorten">
+        </div>
+        <br>
+        <code id="shorten_info"></code>
+    </form>
+    {% if let Some(retention) = file_retention %}
+    <br>
+    <code>
+        <strong>File Retention:</strong><br>
+        &nbsp;&nbsp;Minimum Days: <strong>{{ retention.min_age }} days</strong><br>
+        &nbsp;&nbsp;Maximum Days: <strong>{{ retention.max_age }} days</strong><br>
+        &nbsp;&nbsp;Formula: <strong>min_days + (-max_days + min_days) * (file_size / filesize_limit - 1) ** 5</strong><br>
+        &nbsp;&nbsp;File size are in bytes.
+    </code>
+    {% endif %}
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.9.0/dist/axios.min.js" integrity="sha256-zKmDh+GEVvPxPFFi3MzpYO1/ZsLgeJ1sFSz2oSvBG6Y=" crossorigin="anonymous"></script>
+    <script>
+        const upload_form = document.getElementById("upload_form"),
+            upload_info = document.getElementById("upload_info"),
+            upload_btn = document.getElementById("upload_btn");
+        const shorten_form = document.getElementById("shorten_form"),
+            shorten_info = document.getElementById("shorten_info"),
+            shorten_btn = document.getElementById("shorten_btn");
+
+        // https://stackoverflow.com/a/5717133/13274776
+        function validURL(str) {
+            var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+                '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+                '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+                '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+            return !!pattern.test(str);
+        }
+
+        upload_btn.addEventListener("click", function (event) {
+            event.preventDefault();
+            upload_info.innerHTML = "";
+            if (!upload_form.files.length) {
+                upload_info.innerText = "Please select a file.";
+            } else {
+                upload_info.innerText = "Uploading..."
+                let uploadPackage = new FormData();
+                uploadPackage.append("file", upload_form.files[0]);
+                axios.request({
+                    method: "POST",
+                    url: "/upload",
+                    data: uploadPackage,
+                    onUploadProgress: (p) => {
+                        let progress = ((p.loaded / p.total) * 100).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                        upload_info.innerText = `Uploading... ${progress}%`
+
+                    }
+                }).then(ress => {
+                    let data = ress.data;
+                    upload_info.innerText = "";
+                    if (data.startsWith("http")) {
+                        upload_info.innerHTML = `<a href="${data}">${data}</a>`;
+                    } else {
+                        upload_info.innerText = data;
+                    }
+                }).catch(error => {
+                    upload_info.innerText = error?.toString() ?? "Unknown error.";
+                })
+            };
+        });
+
+        shorten_btn.addEventListener("click", function (event) {
+            event.preventDefault();
+            shorten_info.innerHTML = "";
+            if (!shorten_form.value.length) {
+                shorten_info.innerText = "Please enter URL.";
+            } else {
+                if (!validURL(shorten_form.value)) {
+                    shorten_info.innerText = "Not a valid URL."
+                } else {
+                    shorten_info.innerText = "Shortening...";
+                    let url_form = new FormData();
+                    url_form.append("url", shorten_form.value)
+                    fetch(
+                            "/short", {
+                                method: "POST",
+                                body: url_form
+                            }
+                        )
+                        .then(response => response.text())
+                        .then(data => {
+                            shorten_info.innerText = "";
+                            if (data.startsWith("http")) {
+                                shorten_info.innerHTML = `<a href="${data}">${data}</a>`;
+                            } else {
+                                shorten_info.innerText = data;
+                            }
+                        })
+                        .catch(error => {
+                            shorten_info.innerText = error;
+                        });
+                };
+            };
+        });
+    </script>
+</body>
+
+</html>

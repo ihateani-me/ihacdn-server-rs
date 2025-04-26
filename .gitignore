@@ -1,0 +1,7 @@
+/target
+/logs
+
+/uploads
+/uploads_admin
+
+config.json
