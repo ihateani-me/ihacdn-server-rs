@@ -36,6 +36,111 @@ pub enum CDNData {
     },
 }
 
+impl CDNData {
+    pub async fn is_expired(&self, config: &Arc<IhaCdnConfig>) -> bool {
+        let now_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        match self {
+            CDNData::Short { .. } => false,
+            CDNData::File {
+                is_admin,
+                time_added,
+                path,
+                ..
+            } => {
+                if *is_admin {
+                    false
+                } else {
+                    let file_size = match tokio::fs::metadata(path).await {
+                        Ok(metadata) => metadata.len(),
+                        Err(err) => {
+                            if err.kind() == std::io::ErrorKind::NotFound {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        }
+                    };
+
+                    let max_age = calculate_retention_file(file_size, config, *is_admin);
+                    if max_age == -1 {
+                        false
+                    } else {
+                        let file_age = now_time.saturating_sub(*time_added).min(0);
+                        file_age > max_age
+                    }
+                }
+            }
+            CDNData::Code {
+                is_admin,
+                time_added,
+                path,
+                ..
+            } => {
+                if *is_admin {
+                    false
+                } else {
+                    let file_size = match tokio::fs::metadata(path).await {
+                        Ok(metadata) => metadata.len(),
+                        Err(err) => {
+                            if err.kind() == std::io::ErrorKind::NotFound {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        }
+                    };
+
+                    let max_age = calculate_retention_file(file_size, config, *is_admin);
+                    if max_age == -1 {
+                        false
+                    } else {
+                        let file_age = now_time.saturating_sub(*time_added).min(0);
+                        file_age > max_age
+                    }
+                }
+            }
+        }
+    }
+
+    pub async fn delete_file(&self) {
+        let path = match self {
+            CDNData::Short { .. } => None,
+            CDNData::File { path, .. } => Some(path),
+            CDNData::Code { path, .. } => Some(path),
+        };
+
+        if let Some(path) = path {
+            if let Err(err) = tokio::fs::remove_file(path).await {
+                tracing::error!("Failed to delete file: {}", err);
+            }
+        }
+    }
+}
+
+fn calculate_retention_file(file_size: u64, config: &Arc<IhaCdnConfig>, is_admin: bool) -> i64 {
+    let ret = &config.retention;
+    let limit = config.get_limit(is_admin);
+    match limit {
+        Some(limit) => {
+            let min_age = ret.min_age as i64;
+            let max_age = ret.max_age as i64;
+            let fsize = file_size as f64;
+            let ilimit = limit as f64;
+
+            let fs_div = (fsize / ilimit).floor().min(0.0) as i64;
+            let age_calc = -max_age.saturating_add(min_age);
+
+            let rhs = (age_calc.saturating_mul(fs_div)).saturating_pow(5);
+            min_age.saturating_add(rhs)
+        }
+        None => -1,
+    }
+}
+
 pub const PREFIX: &str = "ihacdn";
 
 pub const DELETED_ERROR: &'static str = r#"System.IO.FileNotFoundException: Could not find file '{{ FN }}' in server filesystem.
