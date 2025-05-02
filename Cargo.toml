@@ -17,13 +17,13 @@ futures-util = { version = "0.3.31", default-features = false, features = ["std"
 
 # File server
 mime_guess = "2.0.5"
-tika-magic = { version = "0.2.1" }
+tika-magic = { version = "0.2.3" }
 
 # Templating
 askama = "0.14.0"
 
 # Web server
-axum = { version = "0.8.3", default-features = false, features = [
+axum = { version = "0.8.4", default-features = false, features = [
     "http1",
     "http2",
     "matched-path",
