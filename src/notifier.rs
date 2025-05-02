@@ -1,11 +1,61 @@
-use std::{net::IpAddr, sync::Arc};
+use std::{
+    net::IpAddr,
+    sync::{Arc, LazyLock},
+};
 
 use axum::http::{
     HeaderMap, HeaderValue,
     header::{self, GetAll},
 };
+use ipnet::IpNet;
 
 use crate::{config::IhaCdnConfig, state::CDNData};
+
+static CF_IPV4_BLOCKS: LazyLock<Vec<IpNet>> = LazyLock::new(|| {
+    let blocked_ranges = vec![
+        "173.245.48.0/20",
+        "103.21.244.0/22",
+        "103.22.200.0/22",
+        "103.31.4.0/22",
+        "141.101.64.0/18",
+        "108.162.192.0/18",
+        "190.93.240.0/20",
+        "188.114.96.0/20",
+        "197.234.240.0/22",
+        "198.41.128.0/17",
+        "162.158.0.0/15",
+        "104.16.0.0/13",
+        "104.24.0.0/14",
+        "172.64.0.0/13",
+        "131.0.72.0/22",
+    ];
+
+    let blocked_nets: Vec<IpNet> = blocked_ranges
+        .iter()
+        .filter_map(|range| range.parse().ok())
+        .collect();
+
+    blocked_nets
+});
+
+static CF_IPV6_BLOCKS: LazyLock<Vec<IpNet>> = LazyLock::new(|| {
+    let blocked_ranges = vec![
+        "2400:cb00::/32",
+        "2606:4700::/32",
+        "2803:f800::/32",
+        "2405:b500::/32",
+        "2405:8100::/32",
+        "2a06:98c0::/29",
+        "2c0f:f248::/32",
+    ];
+
+    let blocked_nets: Vec<IpNet> = blocked_ranges
+        .iter()
+        .filter_map(|range| range.parse().ok())
+        .collect();
+
+    blocked_nets
+});
 
 pub fn extract_ip_address(headers: &HeaderMap) -> Vec<IpAddr> {
     // Get rightmost IP address from X-Forwarded-For header
@@ -25,6 +75,7 @@ pub fn extract_ip_address(headers: &HeaderMap) -> Vec<IpAddr> {
     ip_address.extend(x_real_ip);
 
     ip_address.retain(|ip| !is_private_ip(*ip));
+    ip_address.retain(|ip| !is_in_blocked_ranges(*ip));
     ip_address
 }
 
@@ -59,6 +110,17 @@ fn is_private_ip(ip: IpAddr) -> bool {
                 || ipv6.is_unicast_link_local()
                 || ipv6.is_unique_local()
         }
+    }
+}
+
+fn is_in_blocked_ranges(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ipv4) => CF_IPV4_BLOCKS
+            .iter()
+            .any(|net| net.contains(&IpAddr::V4(ipv4))),
+        IpAddr::V6(ipv6) => CF_IPV6_BLOCKS
+            .iter()
+            .any(|net| net.contains(&IpAddr::V6(ipv6))),
     }
 }
 
