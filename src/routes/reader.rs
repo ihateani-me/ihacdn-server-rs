@@ -216,7 +216,13 @@ pub async fn file_reader(
                         .into_response()
                 }
                 CDNData::Short { target } => {
-                    (StatusCode::TEMPORARY_REDIRECT, target).into_response()
+                    let mut builder = axum::http::Response::builder();
+                    let headers = builder.headers_mut().unwrap();
+                    headers.insert(axum::http::header::LOCATION, target.parse().unwrap());
+                    builder
+                        .status(StatusCode::TEMPORARY_REDIRECT)
+                        .body(Body::empty())
+                        .unwrap()
                 }
             }
         }
