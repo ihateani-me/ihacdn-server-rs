@@ -236,12 +236,13 @@
                         shorten_info.innerText = "Not a valid URL."
                     } else {
                         shorten_info.innerText = "Shortening...";
-                        let url_form = new FormData();
-                        url_form.append("url", shorten_form.value)
                         fetch(
                                 "/short", {
                                     method: "POST",
-                                    body: url_form
+                                    body: `url=${shorten_form.value}`,
+                                    headers: {
+                                        "Content-Type": "application/x-www-form-urlencoded"
+                                    },
                                 }
                             )
                             .then(response => response.text())
