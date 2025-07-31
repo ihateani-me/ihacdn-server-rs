@@ -86,7 +86,8 @@ pub fn report_to_plausible(
             .body(body_data)
             .header("Content-Type", "application/json")
             .header("User-Agent", user_agent)
-            .header("X-Forwarded-For", ip_addresses)
+            .header("X-Forwarded-For", ip_addresses.clone())
+            .header("X-Forwarded-Plausible-For", ip_addresses)
             .send()
             .await
         {
