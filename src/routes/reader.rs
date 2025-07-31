@@ -3,23 +3,26 @@ use std::sync::Arc;
 use axum::{
     body::Body,
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
 use axum_extra::body::AsyncReadBody;
 use tokio::io::AsyncWriteExt;
 
 use crate::{
+    notifier::extract_ip_address,
     state::{
         CDNData, DELETED_ERROR, PREFIX, READ_FILE_ERROR, REDIS_CONNECTION_ERROR, REDIS_GET_ERROR,
         SharedState,
     },
     templating::{HtmlTemplate, TemplatePaste},
+    track::report_to_plausible,
 };
 
 pub async fn file_reader(
     method: axum::http::Method,
     State(state): State<Arc<SharedState>>,
+    headers: HeaderMap,
     Path(id_path): Path<String>,
 ) -> Response {
     // Placeholder for file reading logic
@@ -37,6 +40,16 @@ pub async fn file_reader(
         None => (id_path.clone(), String::new()),
     };
 
+    let ip_address = extract_ip_address(&headers);
+    let user_agent = headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let referer = headers
+        .get(axum::http::header::REFERER)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
     match redis::cmd("GET")
         .arg(format!("{PREFIX}{}", &raw_id))
         .query_async::<Option<String>>(&mut connection)
@@ -52,7 +65,7 @@ pub async fn file_reader(
                 }
             };
 
-            match parsed_data {
+            match &parsed_data {
                 CDNData::Code {
                     is_admin: _,
                     path,
@@ -104,13 +117,23 @@ pub async fn file_reader(
                     match tokio::fs::read_to_string(&path).await {
                         Ok(content) => {
                             // Render the HTML content
-                            let prefer_type = if ext.is_empty() { mimetype } else { ext };
+                            let prefer_type = if ext.is_empty() { mimetype } else { &ext };
 
                             let tpl = TemplatePaste {
-                                code_type: prefer_type,
+                                code_type: prefer_type.clone(),
                                 code_data: content,
-                                file_id: raw_id,
+                                file_id: raw_id.clone(),
                             };
+                            let final_url =
+                                state.config.make_url(&format!("{raw_id}.{prefer_type}"));
+                            report_to_plausible(
+                                final_url,
+                                &parsed_data,
+                                &state.config,
+                                ip_address,
+                                referer,
+                                user_agent,
+                            );
                             HtmlTemplate::new(tpl).into_response()
                         }
                         Err(err) => {
@@ -198,6 +221,16 @@ pub async fn file_reader(
                             .into_response();
                     }
 
+                    let final_url = state.config.make_url(&format!("{raw_id}.{ext}"));
+                    report_to_plausible(
+                        final_url,
+                        &parsed_data,
+                        &state.config,
+                        ip_address,
+                        referer,
+                        user_agent,
+                    );
+
                     tokio::spawn(async move {
                         let _ = tokio::io::copy(&mut stream, &mut tx).await;
                         let _ = tx.flush().await;
@@ -218,6 +251,15 @@ pub async fn file_reader(
                 CDNData::Short { target } => {
                     let mut builder = axum::http::Response::builder();
                     let headers = builder.headers_mut().unwrap();
+                    let final_url = state.config.make_url(&format!("{raw_id}.{ext}"));
+                    report_to_plausible(
+                        final_url,
+                        &parsed_data,
+                        &state.config,
+                        ip_address,
+                        referer,
+                        user_agent,
+                    );
                     headers.insert(axum::http::header::LOCATION, target.parse().unwrap());
                     builder
                         .status(StatusCode::TEMPORARY_REDIRECT)

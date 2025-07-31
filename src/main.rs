@@ -19,6 +19,7 @@ mod purge;
 mod routes;
 mod state;
 mod templating;
+mod track;
 
 const ASSET_FAVICON_ICO: &[u8] = include_bytes!("../assets/favicon.ico");
 const ASSET_FAVICON_PNG: &[u8] = include_bytes!("../assets/favicon.png");

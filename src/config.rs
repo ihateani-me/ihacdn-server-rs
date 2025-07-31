@@ -11,6 +11,49 @@ pub struct IhaCdnNotifierConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct IhaCdnPlausibleConfig {
+    /// Enable or disable Plausible Analytics.
+    pub enable: bool,
+    /// The Plausible Analytics domain.
+    pub domain: Option<String>,
+    /// The Plausible Analytics script URL.
+    pub endpoint_url: Option<String>,
+}
+
+impl Default for IhaCdnPlausibleConfig {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            domain: None,
+            endpoint_url: None,
+        }
+    }
+}
+
+impl IhaCdnPlausibleConfig {
+    /// Check if Plausible Analytics is enabled and has a domain set.
+    pub fn is_enabled(&self) -> bool {
+        self.enable && self.domain.is_some()
+    }
+
+    /// Get the Plausible Analytics endpoint url.
+    pub fn endpoint_url(&self) -> url::Url {
+        let endpoint_base = self
+            .endpoint_url
+            .as_deref()
+            .unwrap_or("https://plausible.io");
+
+        let full_path = url::Url::parse(endpoint_base).unwrap_or_else(|_| {
+            tracing::warn!("Invalid Plausible Analytics endpoint URL, using default.");
+            url::Url::parse("https://plausible.io").unwrap()
+        });
+
+        // add path /api/event
+        full_path.join("/api/event").unwrap()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IhaCdnRetentionConfig {
     /// Enable or disable the file retention policy.
     pub enable: bool,
@@ -113,6 +156,10 @@ pub struct IhaCdnConfig {
     pub storage: IhaCdnStorageConfig,
     /// Config for the blocklist.
     pub blocklist: IhaCdnBlocklistConfig,
+    /// Config for the Plausible Analytics.
+    /// This can be missing if Plausible Analytics is not used.
+    #[serde(default)]
+    pub plausible: IhaCdnPlausibleConfig,
 }
 
 impl Default for IhaCdnConfig {
@@ -130,6 +177,7 @@ impl Default for IhaCdnConfig {
             retention: IhaCdnRetentionConfig::default(),
             storage: IhaCdnStorageConfig::default(),
             blocklist: IhaCdnBlocklistConfig::default(),
+            plausible: IhaCdnPlausibleConfig::default(),
         }
     }
 }
@@ -205,6 +253,11 @@ impl IhaCdnConfig {
 
         if self.filename_length < 5 {
             tracing::error!("Filename length must be longer or equals to 5");
+            return false;
+        }
+
+        if self.plausible.enable && self.plausible.domain.is_none() {
+            tracing::error!("Plausible Analytics is enabled but no domain is set.");
             return false;
         }
 

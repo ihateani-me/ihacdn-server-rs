@@ -10,6 +10,11 @@
         "enable": false,
         "discord_webhook": null
     },
+    "plausible": {
+        "enable": false,
+        "domain": null,
+        "endpoint": "https://plausible.io",
+    },
     "file_retention": {
         "enable": false,
         "min_age": 30,
