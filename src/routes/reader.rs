@@ -251,7 +251,7 @@ pub async fn file_reader(
                 CDNData::Short { target } => {
                     let mut builder = axum::http::Response::builder();
                     let headers = builder.headers_mut().unwrap();
-                    let final_url = state.config.make_url(&format!("{raw_id}.{ext}"));
+                    let final_url = state.config.make_url(&raw_id);
                     report_to_plausible(
                         final_url,
                         &parsed_data,

@@ -70,6 +70,8 @@ pub fn report_to_plausible(
             .unwrap_or_else(|| "127.0.0.1".to_string());
 
         tracing::debug!("Reporting to Plausible: {:?}", &event);
+        tracing::debug!("Using Plausible endpoint: {}", psb_endpoint);
+        tracing::debug!("IP Address: {}", ip_address);
         let body_data = match serde_json::to_string(&event) {
             Ok(data) => data,
             Err(e) => {
