@@ -64,14 +64,15 @@ pub fn report_to_plausible(
     });
 
     tokio::spawn(async move {
-        let ip_address = ip_address
-            .first()
+        let ip_addresses = ip_address
+            .iter()
             .map(|ip| ip.to_string())
-            .unwrap_or_else(|| "127.0.0.1".to_string());
+            .collect::<Vec<String>>()
+            .join(", ");
 
         tracing::debug!("Reporting to Plausible: {:?}", &event);
         tracing::debug!("Using Plausible endpoint: {}", psb_endpoint);
-        tracing::debug!("IP Address: {}", ip_address);
+        tracing::debug!("IP Address: {}", ip_addresses);
         let body_data = match serde_json::to_string(&event) {
             Ok(data) => data,
             Err(e) => {
@@ -85,7 +86,7 @@ pub fn report_to_plausible(
             .body(body_data)
             .header("Content-Type", "application/json")
             .header("User-Agent", user_agent)
-            .header("X-Forwarded-For", ip_address)
+            .header("X-Forwarded-For", ip_addresses)
             .send()
             .await
         {
