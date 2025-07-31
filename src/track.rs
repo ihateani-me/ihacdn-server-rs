@@ -8,7 +8,8 @@ pub struct PlausibleEvent {
     url: String,
     props: Option<serde_json::Value>,
     domain: Option<String>,
-    referer: Option<String>,
+    referrer: Option<String>,
+    interactive: bool,
 }
 
 // Actual notifier code
@@ -17,7 +18,7 @@ pub fn report_to_plausible(
     cdn_data: &CDNData,
     config: &Arc<IhaCdnConfig>,
     ip_address: Vec<IpAddr>,
-    referer: Option<String>,
+    referrer: Option<String>,
     user_agent: Option<String>,
 ) {
     if !config.plausible.is_enabled() {
@@ -54,7 +55,8 @@ pub fn report_to_plausible(
             "is_admin_upload": is_admin_upload,
         })),
         domain: Some(psb_domain.clone()),
-        referer,
+        referrer,
+        interactive: false,
     };
 
     let user_agent: String = user_agent.unwrap_or_else(|| {
